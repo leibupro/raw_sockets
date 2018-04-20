@@ -1,3 +1,30 @@
+/*
+ * ----------------------------------------------------------------------------
+ * "THE BEER-WARE LICENSE" (Revision 42):
+ * <pl@vqe.ch> wrote this file.  As long as you retain this notice you
+ * can do whatever you want with this stuff. If we meet some day, and you think
+ * this stuff is worth it, you can buy me a beer in return.   P. Leibundgut
+ * ----------------------------------------------------------------------------
+ *
+ * File:      mitm.c
+ *
+ *
+ * Purpose:   This is an exemplary application of how
+ *            a "man in the middle" can be setup between
+ *            two ethernet interfaces. It uses
+ *            raw sockets to listen on the lowest possible
+ *            network layer, which is the link layer (L2).
+ *
+ *
+ * Remarks:   - Program was wriiten and tested on
+ *              debian and arch distributions with
+ *              a kernel version >= 4.9.
+ *
+ *
+ * Date:      04/2018
+ *
+ */
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -6,20 +33,20 @@
 #include <arpa/inet.h>
 
 #include <net/if.h>
-#include <net/ethernet.h>
 
 #include <netpacket/packet.h>
 
 #include <stdlib.h>
+#include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 
 #define PROTO_PROFINET   0x8892
 #define ETH_DEVICE_FOO    "foo"
 #define ETH_DEVICE_BAR    "bar"
-#define RECV_TIMEOUT    500000L  /* unit is microseconds */
 
 /* to satisfy the jumbo frame studs, 
  * we take a buf size > 9600 bytes ... */
@@ -38,7 +65,7 @@ sd_pair_t;
 /* socket file descriptors */
 static sd_pair_t sfds = { -1, -1 };
 
-static unsigned char running = 0xFFU;
+static volatile sig_atomic_t running = 1;
 
 
 /* function prototypes */
@@ -50,6 +77,17 @@ static void free_bufs( void** foo_rx, void** foo_tx,
 static int forward( int sfd_rx, int sfd_tx, fd_set* rfds, 
                     void* rx_buf, size_t rx_buf_len, 
                     void* tx_buf );
+static void signal_handler( int signum );
+
+
+static void signal_handler( int signum )
+{
+    if( signum == SIGINT )
+    {
+        ( void )fprintf( stdout, "Received SIGINT, terminating ...\n" );
+    }
+    running = 0;
+}
 
 
 static void free_bufs( void** foo_rx, void** foo_tx,
@@ -76,21 +114,21 @@ static int forward( int sfd_rx, int sfd_tx, fd_set* rfds,
     {
         if( ( rx_bytes = read( sfd_rx, rx_buf, rx_buf_len ) ) == -1 )
         {
-            perror( "Failed to receive data. " );
+            perror( "Failed to receive data." );
             return -1;
-    		}
+        }
         ( void )fprintf( stdout, "Received %zd bytes of data.\n", rx_bytes );
-    
-        ( void )memmove( ( void* )tx_buf, 
-                         ( const void* )rx_buf, 
+
+        ( void )memmove( tx_buf,
+                         ( const void* )rx_buf,
                          ( size_t )rx_bytes );
-    
+
         /* modify the frame content, mitms just want to have fun ... */
         *( ( ( unsigned char* )tx_buf ) + 14U ) = 0xFFU;
-    
+
         if( write( sfd_tx, ( const void* )tx_buf, ( size_t )rx_bytes ) == -1 )
         {
-            perror( "Failed to send data. " );
+            perror( "Failed to send data." );
             return -1;
         }
     }
@@ -114,7 +152,7 @@ static void srvr_runnr( void )
         !( bar_rx_buf = ( unsigned char* )calloc( RX_BUF_SIZE, sizeof( unsigned char ) ) ) ||
         !( bar_tx_buf = ( unsigned char* )calloc( TX_BUF_SIZE, sizeof( unsigned char ) ) ) )
     {
-        perror( "Failed to allocate memory for buffers. " );
+        perror( "Failed to allocate memory for buffers." );
         exit( EXIT_FAILURE );
     }
 
@@ -124,23 +162,31 @@ static void srvr_runnr( void )
         FD_SET( sfds.foo, &rfds );
         FD_SET( sfds.bar, &rfds );
 
-        if( select( nfds, &rfds, NULL, NULL, NULL ) < 0 ) 
+        if( select( nfds, &rfds, NULL, NULL, NULL ) < 0 )
         {
-            perror( "select failed. " );
-            goto exit_fail;
+            if( errno != EINTR )
+            {
+                perror( "select failed." );
+                goto exit_fail;
+            }
+            else
+            {
+                ( void )fprintf( stdout, "Select was interrupted,\n"
+                                         "stopping the mitm srvr ...\n");
+                break;
+            }
         }
 
-        if( ( forward( sfds.foo, sfds.bar, &rfds, 
-                       ( void* )foo_rx_buf, RX_BUF_SIZE, 
+        if( ( forward( sfds.foo, sfds.bar, &rfds,
+                       ( void* )foo_rx_buf, RX_BUF_SIZE,
                        ( void* )bar_tx_buf ) == -1 )
             ||
-            ( forward( sfds.bar, sfds.foo, &rfds, 
-                       ( void* )bar_rx_buf, RX_BUF_SIZE, 
+            ( forward( sfds.bar, sfds.foo, &rfds,
+                       ( void* )bar_rx_buf, RX_BUF_SIZE,
                        ( void* )foo_tx_buf ) == -1 )
           )
         {
             goto exit_fail;
-            exit( EXIT_FAILURE );
         }
     }
     ( void )close( sfds.foo );
@@ -153,7 +199,7 @@ static void srvr_runnr( void )
         ( void )close( sfds.foo );
         ( void )close( sfds.bar );
         free_bufs( ( void** )&foo_rx_buf, ( void** )&foo_tx_buf,
-        					 ( void** )&bar_rx_buf, ( void** )&bar_tx_buf );
+                   ( void** )&bar_rx_buf, ( void** )&bar_tx_buf );
         exit( EXIT_FAILURE );
 }
 
@@ -165,7 +211,7 @@ static int open_and_bind_raw_socket( char* if_name, unsigned short proto )
 
     if( ( ( sfd = socket( AF_PACKET, SOCK_RAW, htons( proto ) ) ) == -1 ) )
     {
-        perror( "socket creation failed: " );
+        perror( "socket creation failed:" );
         exit( EXIT_FAILURE );
     }
 
@@ -174,9 +220,9 @@ static int open_and_bind_raw_socket( char* if_name, unsigned short proto )
     addr.sll_protocol = htons( proto );
     addr.sll_ifindex  = if_nametoindex( if_name );
 
-    if( bind( sfd, ( struct sockaddr* )&addr, sizeof( struct sockaddr_ll ) ) < 0 ) 
+    if( bind( sfd, ( struct sockaddr* )&addr, sizeof( struct sockaddr_ll ) ) < 0 )
     {
-        perror( "socket bind failed: " );
+        perror( "socket bind failed:" );
         ( void )close( sfd );
         exit( EXIT_FAILURE );
     }
@@ -194,8 +240,18 @@ static void setup_sockets( void )
 
 int main( void )
 {
+    /* adding a signal handler */
+    if( signal( SIGINT, &signal_handler ) == SIG_ERR )
+    {
+        ( void )fprintf( stderr, "Unable to catch SIGINT ...\n" );
+        return EXIT_FAILURE;
+    }
+
     setup_sockets();
     srvr_runnr();
+
+    ( void )fprintf( stdout, "That's all, folks. Exiting ...\n" );
+
     return EXIT_SUCCESS;
 }
 
