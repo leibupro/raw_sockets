@@ -7,12 +7,20 @@ Virtual Ethernet interfaces and a not so transparent forwarding.
 
 The basic steps to setup and remove the application:
 
-1. `make setup`
-2. `make`
-3. `sudo ./bin/mitm`
-4. `sudo python2 ./src/py/rtc_frame_sender.py`
-5. `make clean`
-6. `make teardown`
+ 1. `make setup`
+ 2. `cd test`
+ 3. `./open_wireshark_alice_and_bob.bash`
+ 4. Start capturing from interfaces `alice` and `bob`
+    which sould be visible in the two wireshark
+    instances.
+ 5. `cd .. && make`
+ 6. Start the built application `sudo ./bin/mitm`
+ 7. `cd test && ./test_ping_alice_to_bob.bash`
+ 8. `./test_ping_bob_to_alice.bash`
+ 9. Stop mitm application by pressing `Ctrl + C`
+10. Quit the two wireshark instances
+11. `make clean`
+12. `make teardown`
 
 
 ## Scenario
@@ -46,28 +54,31 @@ content which is designated to be transferred between
 
 ```
 
-
-     +-----------+                             +-----------+
-     |           |   allegedly communication   |           |
-     |  alice    |<--------------------------->|  bob      |
-     |           |                             |           |
-     +-----------+                             +-----------+
-              ^                                   ^
-              |     <--- real data path ---->     |
-              |                                   |
-              v                                   v
-           +-----------+                 +-----------+
-           |           |                 |           |
-           |  foo      |                 |  bar      |
-           |           |                 |           |
-           +-----------+                 +-----------+
-                    ^                       ^
-                    |     +-----------+     |
-                    |     |           |     |
-                    +---->|  mitm.c   |<----+
-                          |           |
-                          +-----------+
-
+  +----------------------------------+                                              +----------------------------------+
+  |                                  |                                              |                                  |
+  |  network namespace:              |                                              |  network namespace:              |
+  |  princess-peach-castle           |                                              |  boss-blitz-galaxy               |
+  |                                  |                                              |                                  |
+  |                 +-----------+    |                                              |    +-----------+                 |
+  |                 |           |    |            allegedly communication           |    |           |                 |
+  |                 |  alice    | <----------------------------------------------------> |  bob      |                 |
+  |                 |           |    |                                              |    |           |                 |
+  |                 +------+----+    |                                              |    +----+------+                 |
+  |                        ^         |                                              |         ^                        |
+  +------------------------|---------+           <--+ real data path +--->          +---------|------------------------+
+                           |                                                                  |
+                           |                                                                  |
+                           |            +-----------+                 +-----------+           |
+                           |            |           |                 |           |           |
+                           +----------->+  foo      |                 |  bar      +<----------+
+                                        |           |                 |           |
+                                        +--------+--+                 +--+--------+
+                                                 ^                       ^
+                                                 |     +-----------+     |
+                                                 |     |           |     |
+                                                 +---->+  mitm.c   +<----+
+                                                       |           |
+                                                       +-----------+
 
 ```
 

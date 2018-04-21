@@ -46,6 +46,7 @@
 
 
 #define PROTO_PROFINET   0x8892
+#define PROTO_ETH_ALL    0x0003
 #define ETH_DEVICE_FOO    "foo"
 #define ETH_DEVICE_BAR    "bar"
 
@@ -86,8 +87,12 @@ static void signal_handler( int signum )
     if( signum == SIGINT )
     {
         ( void )fprintf( stdout, "Received SIGINT, terminating ...\n" );
+        running = 0;
     }
-    running = 0;
+    else
+    {
+        ( void )fprintf( stderr, "Process received unknown signal: %d\n", signum );
+    }
 }
 
 
@@ -125,7 +130,7 @@ static int forward( int sfd_rx, int sfd_tx, fd_set* rfds,
                          ( size_t )rx_bytes );
 
         /* modify the frame content, mitms just want to have fun ... */
-        *( ( ( unsigned char* )tx_buf ) + 14U ) = 0xFFU;
+        /* *( ( ( unsigned char* )tx_buf ) + 14U ) = 0xFFU; */
 
         if( write( sfd_tx, ( const void* )tx_buf, ( size_t )rx_bytes ) == -1 )
         {
@@ -234,8 +239,8 @@ static int open_and_bind_raw_socket( char* if_name, unsigned short proto )
 
 static void setup_sockets( void )
 {
-    sfds.foo = open_and_bind_raw_socket( ETH_DEVICE_FOO, PROTO_PROFINET );
-    sfds.bar = open_and_bind_raw_socket( ETH_DEVICE_BAR, PROTO_PROFINET );
+    sfds.foo = open_and_bind_raw_socket( ETH_DEVICE_FOO, PROTO_ETH_ALL );
+    sfds.bar = open_and_bind_raw_socket( ETH_DEVICE_BAR, PROTO_ETH_ALL );
 }
 
 
