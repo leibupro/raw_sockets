@@ -13,7 +13,8 @@
  *            a "man in the middle" can be setup between
  *            two ethernet interfaces. It uses
  *            raw sockets to listen on the lowest possible
- *            network layer, which is the link layer (L2).
+ *            network layer, which is the link layer (L2),
+ *            from an OS userspace point of view of course.
  *
  *
  * Remarks:   - Program was wriiten and tested on
