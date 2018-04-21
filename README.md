@@ -11,7 +11,7 @@ The basic steps to setup and remove the application:
  2. `cd test`
  3. `./open_wireshark_alice_and_bob.bash`
  4. Start capturing from interfaces `alice` and `bob`
-    which sould be visible in the two wireshark
+    which should be visible in the two wireshark
     instances.
  5. `cd .. && make`
  6. Start the built application `sudo ./bin/mitm`
