@@ -94,7 +94,7 @@ hardware network interfaces, in fact, only the interface name
 definitions have to be altered.
 
 
-### Configuration recommandation
+### Configuration recommendation
 
 The interfaces which are used by the mitm application, in
 the example setup `foo` and `bar`, should be configured
