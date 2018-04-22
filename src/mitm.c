@@ -44,6 +44,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include <failwhale.h>
+
 
 #define PROTO_PROFINET   0x8892
 #define PROTO_ETH_ALL    0x0003
@@ -159,6 +161,7 @@ static void srvr_runnr( void )
         !( bar_tx_buf = ( unsigned char* )calloc( TX_BUF_SIZE, sizeof( unsigned char ) ) ) )
     {
         perror( "Failed to allocate memory for buffers." );
+        failwhale( stderr );
         exit( EXIT_FAILURE );
     }
 
@@ -206,6 +209,7 @@ static void srvr_runnr( void )
         ( void )close( sfds.bar );
         free_bufs( ( void** )&foo_rx_buf, ( void** )&foo_tx_buf,
                    ( void** )&bar_rx_buf, ( void** )&bar_tx_buf );
+        failwhale( stderr );
         exit( EXIT_FAILURE );
 }
 
@@ -218,6 +222,7 @@ static int open_and_bind_raw_socket( char* if_name, unsigned short proto )
     if( ( ( sfd = socket( AF_PACKET, SOCK_RAW, htons( proto ) ) ) == -1 ) )
     {
         perror( "socket creation failed:" );
+        failwhale( stderr );
         exit( EXIT_FAILURE );
     }
 
@@ -230,6 +235,7 @@ static int open_and_bind_raw_socket( char* if_name, unsigned short proto )
     {
         perror( "socket bind failed:" );
         ( void )close( sfd );
+        failwhale( stderr );
         exit( EXIT_FAILURE );
     }
 
@@ -250,6 +256,7 @@ int main( void )
     if( signal( SIGINT, &signal_handler ) == SIG_ERR )
     {
         ( void )fprintf( stderr, "Unable to catch SIGINT ...\n" );
+        failwhale( stderr );
         return EXIT_FAILURE;
     }
 

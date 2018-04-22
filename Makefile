@@ -64,7 +64,8 @@ OBJDIR := ./obj
 SRCDIR := ./src
 INCDIR := ./include
 
-SRC := $(SRCDIR)/mitm.c
+SRC := $(SRCDIR)/mitm.c \
+       $(SRCDIR)/failwhale.c
 
 OBJ := $(addprefix $(OBJDIR)/, $(notdir $(SRC:.c=.o)))
 
@@ -88,7 +89,7 @@ $(BINDIR):
 
 
 $(BINARY): $(OBJ) $(BINDIR)
-	$(LD) $(LF) $< -o $@
+	$(LD) $(LF) $(OBJ) -o $@
 
 
 $(OBJDIR)/%.o: %.c $(OBJDIR)

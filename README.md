@@ -93,3 +93,19 @@ But the application can easily be adjusted to work with real
 hardware network interfaces, in fact, only the interface name
 definitions have to be altered.
 
+
+### Configuration recommandation
+
+The interfaces which are used by the mitm application, in
+the example setup `foo` and `bar`, should be configured
+as follows:
+
+* set interface to promiscuous mode
+* switch off ipv6
+* switch off arp
+* switch off multicast
+* switch off broadcast (to be done)
+
+The example configuration can be seen in the Makefile, 
+except the elements, which are classified as "to be done".
+
